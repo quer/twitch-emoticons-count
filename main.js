@@ -1,21 +1,19 @@
 var express = require('express');
 var app = express();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
 var emoticons = [];
-
+var allEmoticons = {};
 require('./getEmoticons');
-
+var startTime = new Date();
 var irc = require("irc");
 var settings = {
-	channels : ["#summit1g"],
+	channels : ["#dkgamle", "#onscreenlol", "#nightblue3", "#imaqtpie"],
 	server : "irc.twitch.tv",
 	port: 6667,
 	secure: false,
-	nick : "****",
-	password : "****"
+	nick : "mukuduk",
+	password : "oauth:*********"
 }
-emoticons.push(getEmoticonsDefualt());
+//emoticons.push(getEmoticonsDefualt());
 for (var i = 0; i < settings.channels.length; i++) {
 	emoticons.push(getEmoticons(settings.channels[i]));
 };
@@ -28,17 +26,21 @@ var bot = new irc.Client(settings.server, settings.nick, {
 });
 
 
-app.use("/", express.static(__dirname + '/'));
+app.use("/", express.static(__dirname + '/site/'));
 app.get('/', function(req, res){
-  res.sendfile('index.html');
+  res.sendfile('test.html');
 });
 
-io.on('connection', function(socket){
-	socket.emit("channels", settings.channels);
-  	console.log('a user connected');
+app.get('/json', function(req, res){
+	res.setHeader("content-type", "application/json");
+	res.send(JSON.stringify(allEmoticons));
+});
+app.get('/emoticons', function(req, res){
+	res.setHeader("content-type", "application/json");
+	res.send(JSON.stringify({startTime: startTime, channels: settings.channels, emoticons: emoticons}));
 });
 
-http.listen(3000, function(){
+app.listen(3000, function(){
   console.log('listening on *:3000');
 });
 
@@ -55,30 +57,33 @@ bot.addListener("join", function (channel, who) {
 });
 
 bot.addListener("message", function (who, channel, message) {
-	getEmoticonsFromMessage(message);
-	//bot.say(settings.channels[0], data);
+	getEmoticonsFromMessage(message, channel);
+	//bot.say(settings.channels[0], message);
 });
-
-function getCommand (message) {
-	var mess = message.split("!");
-	if (mess.length > 1) {
-		mess = mess[1].split(" ");
-		if (mess.length > 0) {
-			
-			return;
-		}
-	}
-	return;
-}
-function getEmoticonsFromMessage(message) {
+function getEmoticonsFromMessage(message,channel) {
 	var mess = message.split(" ");
+	//console.log(channel);
+	var ii = settings.channels.indexOf(channel);
 	for (var i = 0; i < mess.length; i++) {
-		for (var ii = 0; ii < emoticons.length; ii++) {
+		//for (var ii = 0; ii < emoticons.length; ii++) {
 			for (var iii = 0; iii < emoticons[ii].length; iii++) {
 				if (mess[i] == emoticons[ii][iii].regex) {
-					io.emit('update', emoticons[ii][iii]);
+					placeArray(emoticons[ii][iii].regex, settings.channels[ii]);
 				};
 			};
-		};
+		//};
 	};
+}
+function placeArray (emoticon, channel) {
+
+	//console.log("ended here");
+	//console.log(emoticon);
+	//console.log(channel);
+	if(typeof allEmoticons[channel] == "undefined"){
+		allEmoticons[channel] = {};
+	}
+	if (typeof allEmoticons[channel][emoticon] == "undefined") {
+		allEmoticons[channel][emoticon] = 0;
+	};
+	allEmoticons[channel][emoticon] += 1;
 }
